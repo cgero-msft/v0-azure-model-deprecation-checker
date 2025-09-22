@@ -1,12 +1,21 @@
 "use client"
 
+import { CardDescription } from "@/components/ui/card"
+
 import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
 import {
   Loader2,
   RefreshCw,
@@ -18,6 +27,11 @@ import {
   ExternalLink,
   ChevronUp,
   ChevronDown,
+  X,
+  Filter,
+  Download,
+  Copy,
+  Check,
 } from "lucide-react"
 
 interface AzureModel {
@@ -47,7 +61,18 @@ type SortField =
   | "retirementDate"
 type SortDirection = "asc" | "desc"
 
-export function AzureModelDashboard() {
+interface ColumnFilters {
+  name: string
+  status: string
+  version: string
+  deploymentName: string
+  resourceName: string
+  region: string
+  deprecationDate: string
+  retirementDate: string
+}
+
+function AzureModelDashboard() {
   const [models, setModels] = useState<AzureModel[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -57,6 +82,42 @@ export function AzureModelDashboard() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [sortField, setSortField] = useState<SortField>("name")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
+
+  const [columnFilters, setColumnFilters] = useState<ColumnFilters>({
+    name: "",
+    status: "",
+    version: "",
+    deploymentName: "",
+    resourceName: "",
+    region: "",
+    deprecationDate: "",
+    retirementDate: "",
+  })
+
+  const [copied, setCopied] = useState(false)
+
+  const updateColumnFilter = (column: keyof ColumnFilters, value: string) => {
+    setColumnFilters((prev) => ({
+      ...prev,
+      [column]: value,
+    }))
+  }
+
+  const clearAllFilters = () => {
+    setColumnFilters({
+      name: "",
+      status: "",
+      version: "",
+      deploymentName: "",
+      resourceName: "",
+      region: "",
+      deprecationDate: "",
+      retirementDate: "",
+    })
+    setSearchTerm("")
+  }
+
+  const hasActiveFilters = Object.values(columnFilters).some((filter) => filter !== "") || searchTerm !== ""
 
   const fetchModels = async () => {
     if (!subscriptionId.trim()) {
@@ -137,12 +198,28 @@ export function AzureModelDashboard() {
                 <li>Open the Cloud Shell</li>
                 <li>Run the following command:</li>
               </ol>
-              <code className="text-xs bg-background px-2 py-1 rounded block mt-2">
-                az account get-access-token --resource https://management.azure.com/
-              </code>
+              <div className="relative mt-2">
+                <code className="text-xs bg-background px-2 py-1 rounded block pr-10">
+                  az account get-access-token --resource https://management.azure.com/
+                </code>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-1 top-0.5 h-6 w-6 p-0 hover:bg-muted"
+                  onClick={() =>
+                    copyToClipboard("az account get-access-token --resource https://management.azure.com/")
+                  }
+                >
+                  {copied ? (
+                    <Check className="w-3 h-3 text-success-green" />
+                  ) : (
+                    <Copy className="w-3 h-3 text-muted-foreground" />
+                  )}
+                </Button>
+              </div>
             </div>
 
-            <p className="text-xs text-slate-600">
+            <p className="text-xs text-muted-foreground">
               Perfect for quick checks and testing. You'll need to refresh the token when it expires.
             </p>
           </CardContent>
@@ -299,13 +376,46 @@ export function AzureModelDashboard() {
     return sortDirection === "asc" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
   }
 
+  const getUniqueValues = (field: keyof AzureModel): string[] => {
+    const values = models.map((model) => {
+      const value = model[field]
+      if (field === "deprecationDate" || field === "retirementDate") {
+        return value ? new Date(value as string).toLocaleDateString() : "No Date"
+      }
+      return value?.toString() || "N/A"
+    })
+    return Array.from(new Set(values)).sort()
+  }
+
+  const hasColumnFilter = (column: keyof ColumnFilters): boolean => {
+    return columnFilters[column] !== ""
+  }
+
   const filteredAndSortedModels = models
-    .filter(
-      (model) =>
+    .filter((model) => {
+      // Global search filter
+      const matchesSearch =
+        searchTerm === "" ||
         model.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         model.deploymentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        model.resourceGroup.toLowerCase().includes(searchTerm.toLowerCase()),
-    )
+        model.resourceGroup.toLowerCase().includes(searchTerm.toLowerCase())
+
+      const matchesColumnFilters =
+        (columnFilters.name === "" || model.name === columnFilters.name) &&
+        (columnFilters.status === "" || model.status === columnFilters.status) &&
+        (columnFilters.version === "" || model.version === columnFilters.version) &&
+        (columnFilters.deploymentName === "" || model.deploymentName === columnFilters.deploymentName) &&
+        (columnFilters.resourceName === "" || (model.resourceName || "N/A") === columnFilters.resourceName) &&
+        (columnFilters.region === "" || model.region === columnFilters.region) &&
+        (columnFilters.deprecationDate === "" ||
+          (model.deprecationDate ? new Date(model.deprecationDate).toLocaleDateString() : "No Date") ===
+            columnFilters.deprecationDate) &&
+        (columnFilters.retirementDate === "" ||
+          (model.retirementDate ? new Date(model.retirementDate).toLocaleDateString() : "No Date") ===
+            columnFilters.retirementDate)
+
+      return matchesSearch && matchesColumnFilters
+    })
     .sort((a, b) => {
       let aValue: string | number = ""
       let bValue: string | number = ""
@@ -351,6 +461,16 @@ export function AzureModelDashboard() {
     })
 
   const deprecatedCount = models.filter((m) => m.status === "deprecated" || m.status === "retiring").length
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error("Failed to copy text: ", err)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -509,6 +629,17 @@ export function AzureModelDashboard() {
                         className="pl-10 w-64"
                       />
                     </div>
+                    {hasActiveFilters && (
+                      <Button
+                        onClick={clearAllFilters}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-1 bg-transparent"
+                      >
+                        <X className="w-4 h-4" />
+                        Clear Filters
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -521,72 +652,304 @@ export function AzureModelDashboard() {
                           className="font-semibold cursor-pointer hover:bg-muted/70 select-none"
                           onClick={() => handleSort("name")}
                         >
-                          <div className="flex items-center gap-1">
-                            Model
-                            <SortIcon field="name" />
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1">
+                              Model
+                              <SortIcon field="name" />
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className={`h-6 w-6 p-0 ${hasColumnFilter("name") ? "text-azure-blue" : "text-muted-foreground"}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Filter className="h-3 w-3" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start" className="w-56">
+                                <DropdownMenuItem onClick={() => updateColumnFilter("name", "")}>
+                                  <span className="font-medium">All Models</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                {getUniqueValues("name").map((value) => (
+                                  <DropdownMenuItem
+                                    key={value}
+                                    onClick={() => updateColumnFilter("name", value)}
+                                    className={columnFilters.name === value ? "bg-azure-blue/10" : ""}
+                                  >
+                                    {value}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableHead>
                         <TableHead
                           className="font-semibold cursor-pointer hover:bg-muted/70 select-none"
                           onClick={() => handleSort("status")}
                         >
-                          <div className="flex items-center gap-1">
-                            Status
-                            <SortIcon field="status" />
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1">
+                              Status
+                              <SortIcon field="status" />
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className={`h-6 w-6 p-0 ${hasColumnFilter("status") ? "text-azure-blue" : "text-muted-foreground"}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Filter className="h-3 w-3" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start" className="w-40">
+                                <DropdownMenuItem onClick={() => updateColumnFilter("status", "")}>
+                                  <span className="font-medium">All Status</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                {getUniqueValues("status").map((value) => (
+                                  <DropdownMenuItem
+                                    key={value}
+                                    onClick={() => updateColumnFilter("status", value)}
+                                    className={columnFilters.status === value ? "bg-azure-blue/10" : ""}
+                                  >
+                                    {value}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableHead>
                         <TableHead
                           className="font-semibold cursor-pointer hover:bg-muted/70 select-none"
                           onClick={() => handleSort("version")}
                         >
-                          <div className="flex items-center gap-1">
-                            Version
-                            <SortIcon field="version" />
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1">
+                              Version
+                              <SortIcon field="version" />
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className={`h-6 w-6 p-0 ${hasColumnFilter("version") ? "text-azure-blue" : "text-muted-foreground"}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Filter className="h-3 w-3" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start" className="w-40">
+                                <DropdownMenuItem onClick={() => updateColumnFilter("version", "")}>
+                                  <span className="font-medium">All Versions</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                {getUniqueValues("version").map((value) => (
+                                  <DropdownMenuItem
+                                    key={value}
+                                    onClick={() => updateColumnFilter("version", value)}
+                                    className={columnFilters.version === value ? "bg-azure-blue/10" : ""}
+                                  >
+                                    {value}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableHead>
                         <TableHead
                           className="font-semibold cursor-pointer hover:bg-muted/70 select-none"
                           onClick={() => handleSort("deploymentName")}
                         >
-                          <div className="flex items-center gap-1">
-                            Deployment
-                            <SortIcon field="deploymentName" />
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1">
+                              Deployment
+                              <SortIcon field="deploymentName" />
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className={`h-6 w-6 p-0 ${hasColumnFilter("deploymentName") ? "text-azure-blue" : "text-muted-foreground"}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Filter className="h-3 w-3" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start" className="w-56">
+                                <DropdownMenuItem onClick={() => updateColumnFilter("deploymentName", "")}>
+                                  <span className="font-medium">All Deployments</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                {getUniqueValues("deploymentName").map((value) => (
+                                  <DropdownMenuItem
+                                    key={value}
+                                    onClick={() => updateColumnFilter("deploymentName", value)}
+                                    className={columnFilters.deploymentName === value ? "bg-azure-blue/10" : ""}
+                                  >
+                                    {value}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableHead>
                         <TableHead
                           className="font-semibold cursor-pointer hover:bg-muted/70 select-none"
                           onClick={() => handleSort("resourceName")}
                         >
-                          <div className="flex items-center gap-1">
-                            Resource
-                            <SortIcon field="resourceName" />
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1">
+                              Resource
+                              <SortIcon field="resourceName" />
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className={`h-6 w-6 p-0 ${hasColumnFilter("resourceName") ? "text-azure-blue" : "text-muted-foreground"}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Filter className="h-3 w-3" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start" className="w-56">
+                                <DropdownMenuItem onClick={() => updateColumnFilter("resourceName", "")}>
+                                  <span className="font-medium">All Resources</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                {getUniqueValues("resourceName").map((value) => (
+                                  <DropdownMenuItem
+                                    key={value}
+                                    onClick={() => updateColumnFilter("resourceName", value)}
+                                    className={columnFilters.resourceName === value ? "bg-azure-blue/10" : ""}
+                                  >
+                                    {value}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableHead>
                         <TableHead
                           className="font-semibold cursor-pointer hover:bg-muted/70 select-none"
                           onClick={() => handleSort("region")}
                         >
-                          <div className="flex items-center gap-1">
-                            Region
-                            <SortIcon field="region" />
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1">
+                              Region
+                              <SortIcon field="region" />
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className={`h-6 w-6 p-0 ${hasColumnFilter("region") ? "text-azure-blue" : "text-muted-foreground"}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Filter className="h-3 w-3" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start" className="w-48">
+                                <DropdownMenuItem onClick={() => updateColumnFilter("region", "")}>
+                                  <span className="font-medium">All Regions</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                {getUniqueValues("region").map((value) => (
+                                  <DropdownMenuItem
+                                    key={value}
+                                    onClick={() => updateColumnFilter("region", value)}
+                                    className={columnFilters.region === value ? "bg-azure-blue/10" : ""}
+                                  >
+                                    {value}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableHead>
                         <TableHead
                           className="font-semibold cursor-pointer hover:bg-muted/70 select-none"
                           onClick={() => handleSort("deprecationDate")}
                         >
-                          <div className="flex items-center gap-1">
-                            Deprecation Date
-                            <SortIcon field="deprecationDate" />
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1">
+                              Deprecation Date
+                              <SortIcon field="deprecationDate" />
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className={`h-6 w-6 p-0 ${hasColumnFilter("deprecationDate") ? "text-azure-blue" : "text-muted-foreground"}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Filter className="h-3 w-3" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start" className="w-48">
+                                <DropdownMenuItem onClick={() => updateColumnFilter("deprecationDate", "")}>
+                                  <span className="font-medium">All Dates</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                {getUniqueValues("deprecationDate").map((value) => (
+                                  <DropdownMenuItem
+                                    key={value}
+                                    onClick={() => updateColumnFilter("deprecationDate", value)}
+                                    className={columnFilters.deprecationDate === value ? "bg-azure-blue/10" : ""}
+                                  >
+                                    {value}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableHead>
                         <TableHead
                           className="font-semibold cursor-pointer hover:bg-muted/70 select-none"
                           onClick={() => handleSort("retirementDate")}
                         >
-                          <div className="flex items-center gap-1">
-                            Retirement Date
-                            <SortIcon field="retirementDate" />
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1">
+                              Retirement Date
+                              <SortIcon field="retirementDate" />
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className={`h-6 w-6 p-0 ${hasColumnFilter("retirementDate") ? "text-azure-blue" : "text-muted-foreground"}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Filter className="h-3 w-3" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start" className="w-48">
+                                <DropdownMenuItem onClick={() => updateColumnFilter("retirementDate", "")}>
+                                  <span className="font-medium">All Dates</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                {getUniqueValues("retirementDate").map((value) => (
+                                  <DropdownMenuItem
+                                    key={value}
+                                    onClick={() => updateColumnFilter("retirementDate", value)}
+                                    className={columnFilters.retirementDate === value ? "bg-azure-blue/10" : ""}
+                                  >
+                                    {value}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableHead>
                       </TableRow>
@@ -636,8 +999,10 @@ export function AzureModelDashboard() {
                   </Table>
                 </div>
 
-                {filteredAndSortedModels.length === 0 && searchTerm && (
-                  <div className="text-center py-8 text-muted-foreground">No models found matching "{searchTerm}"</div>
+                {filteredAndSortedModels.length === 0 && (searchTerm || hasActiveFilters) && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No models found matching the current filters
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -651,11 +1016,11 @@ export function AzureModelDashboard() {
               <CardContent>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Button onClick={exportToJSON} variant="outline" className="flex items-center gap-2 bg-transparent">
-                    <Settings className="w-4 h-4" />
+                    <Download className="w-4 h-4" />
                     Export as JSON
                   </Button>
                   <Button onClick={exportToCSV} variant="outline" className="flex items-center gap-2 bg-transparent">
-                    <Settings className="w-4 h-4" />
+                    <Download className="w-4 h-4" />
                     Export as CSV
                   </Button>
                   <div className="text-sm text-muted-foreground flex items-center">
@@ -683,3 +1048,5 @@ export function AzureModelDashboard() {
     </div>
   )
 }
+
+export { AzureModelDashboard }
