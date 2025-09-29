@@ -92,7 +92,7 @@ function AzureModelDashboard() {
 
   const [copied, setCopied] = useState(false)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
-  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null)
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number; width: number } | null>(null)
   const [activeButtonRef, setActiveButtonRef] = useState<HTMLElement | null>(null)
 
   const updateColumnFilter = (column: keyof ColumnFilters, value: string) => {
@@ -409,17 +409,24 @@ function AzureModelDashboard() {
       closeDropdown()
     } else {
       const buttonElement = event.currentTarget as HTMLElement
+      const headerCell = buttonElement.closest("th") as HTMLElement
+      const columnWidth = headerCell ? headerCell.offsetWidth : 200
+
       setActiveButtonRef(buttonElement)
 
       const rect = buttonElement.getBoundingClientRect()
+      const headerRect = headerCell?.getBoundingClientRect()
+
       setDropdownPosition({
         top: rect.bottom + 4,
-        left: rect.left + rect.width / 2,
+        left: headerRect ? headerRect.left : rect.left,
+        width: columnWidth,
       })
       setOpenDropdown(column)
       console.log("[v0] Opening dropdown for column:", column, "at position:", {
         top: rect.bottom + 4,
-        left: rect.left + rect.width / 2,
+        left: headerRect ? headerRect.left : rect.left,
+        width: columnWidth,
       })
     }
   }
@@ -432,10 +439,16 @@ function AzureModelDashboard() {
 
   const updateDropdownPosition = () => {
     if (activeButtonRef && openDropdown) {
+      const headerCell = activeButtonRef.closest("th") as HTMLElement
+      const columnWidth = headerCell ? headerCell.offsetWidth : 200
+
       const rect = activeButtonRef.getBoundingClientRect()
+      const headerRect = headerCell?.getBoundingClientRect()
+
       setDropdownPosition({
         top: rect.bottom + 4,
-        left: rect.left + rect.width / 2,
+        left: headerRect ? headerRect.left : rect.left,
+        width: columnWidth,
       })
     }
   }
@@ -555,12 +568,12 @@ function AzureModelDashboard() {
 
     const dropdownContent = (
       <div
-        className="filter-dropdown fixed z-[9999] bg-background border border-border rounded-md shadow-lg py-1 min-w-[200px] max-h-60 overflow-y-auto"
+        className="filter-dropdown fixed z-[9999] bg-background border border-border rounded-md shadow-lg py-1 max-h-60 overflow-y-auto"
         style={{
           position: "fixed",
           top: `${dropdownPosition.top}px`,
           left: `${dropdownPosition.left}px`,
-          transform: "translateX(-50%)",
+          width: `${dropdownPosition.width}px`, // Use calculated column width
         }}
         onScroll={(e) => e.stopPropagation()}
       >
