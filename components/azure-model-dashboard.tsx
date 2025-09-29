@@ -426,10 +426,13 @@ function AzureModelDashboard() {
   }
 
   useEffect(() => {
-    const handleScroll = () => {
+    const handleScroll = (event: Event) => {
       if (openDropdown && dropdownPosition) {
-        // Close dropdown on scroll to prevent positioning issues
-        closeDropdown()
+        const target = event.target as Element
+        // Check if the scroll event is coming from the dropdown itself
+        if (!target.closest(".filter-dropdown")) {
+          closeDropdown()
+        }
       }
     }
 
@@ -546,6 +549,7 @@ function AzureModelDashboard() {
           left: `${dropdownPosition.left}px`,
           transform: "translateX(-50%)", // Center horizontally relative to the button
         }}
+        onScroll={(e) => e.stopPropagation()}
       >
         <button
           className="w-full px-3 py-2 text-left text-sm hover:bg-muted font-medium"
