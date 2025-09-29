@@ -408,17 +408,14 @@ function AzureModelDashboard() {
       closeDropdown()
     } else {
       const rect = event.currentTarget.getBoundingClientRect()
-      const scrollTop = window.pageYOffset || document.documentElement.scrollTop
-      const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft
-
       setDropdownPosition({
-        top: rect.bottom + scrollTop + 4,
-        left: rect.left + scrollLeft,
+        top: rect.bottom + 4, // Just add small offset below the button
+        left: rect.left + rect.width / 2, // Center horizontally on the button
       })
       setOpenDropdown(column)
       console.log("[v0] Opening dropdown for column:", column, "at position:", {
-        top: rect.bottom + scrollTop + 4,
-        left: rect.left + scrollLeft,
+        top: rect.bottom + 4,
+        left: rect.left + rect.width / 2,
       })
     }
   }
