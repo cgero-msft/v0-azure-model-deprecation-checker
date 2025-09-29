@@ -1,21 +1,16 @@
 "use client"
 
+import type React from "react"
+
 import { CardDescription } from "@/components/ui/card"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu"
 import {
   Loader2,
   RefreshCw,
@@ -96,6 +91,7 @@ function AzureModelDashboard() {
 
   const [copied, setCopied] = useState(false)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null)
 
   const updateColumnFilter = (column: keyof ColumnFilters, value: string) => {
     console.log("[v0] Updating column filter:", column, "to:", value)
@@ -103,7 +99,7 @@ function AzureModelDashboard() {
       ...prev,
       [column]: value,
     }))
-    setOpenDropdown(null) // Close dropdown after selection
+    closeDropdown() // Close dropdown after selection
   }
 
   const clearAllFilters = () => {
@@ -394,6 +390,38 @@ function AzureModelDashboard() {
     return columnFilters[column] !== ""
   }
 
+  const handleDocumentClick = (event: MouseEvent) => {
+    if (openDropdown && !(event.target as Element).closest(".filter-dropdown")) {
+      closeDropdown()
+    }
+  }
+
+  useEffect(() => {
+    document.addEventListener("click", handleDocumentClick)
+    return () => document.removeEventListener("click", handleDocumentClick)
+  }, [openDropdown])
+
+  const handleFilterClick = (column: string, event: React.MouseEvent) => {
+    console.log("[v0] Filter button clicked for column:", column)
+    event.stopPropagation()
+
+    if (openDropdown === column) {
+      closeDropdown()
+    } else {
+      const rect = event.currentTarget.getBoundingClientRect()
+      setDropdownPosition({
+        top: rect.bottom + window.scrollY + 4,
+        left: rect.left + window.scrollX,
+      })
+      setOpenDropdown(column)
+    }
+  }
+
+  const closeDropdown = () => {
+    setOpenDropdown(null)
+    setDropdownPosition(null)
+  }
+
   const filteredAndSortedModels = models
     .filter((model) => {
       // Global search filter
@@ -660,42 +688,50 @@ function AzureModelDashboard() {
                               Model
                               <SortIcon field="name" />
                             </div>
-                            <DropdownMenu
-                              open={openDropdown === "name"}
-                              onOpenChange={(open) => {
-                                console.log("[v0] Name dropdown open state:", open)
-                                setOpenDropdown(open ? "name" : null)
-                              }}
-                            >
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className={`h-6 w-6 p-0 ${hasColumnFilter("name") ? "text-azure-blue" : "text-muted-foreground"}`}
-                                  onClick={(e) => {
-                                    console.log("[v0] Name filter button clicked")
-                                    e.stopPropagation()
+                            <div className="relative">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className={`h-6 w-6 p-0 ${hasColumnFilter("name") ? "text-azure-blue" : "text-muted-foreground"}`}
+                                onClick={(e) => handleFilterClick("name", e)}
+                              >
+                                <Filter className="h-3 w-3" />
+                              </Button>
+                              {openDropdown === "name" && dropdownPosition && (
+                                <div
+                                  className="filter-dropdown fixed z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[200px]"
+                                  style={{
+                                    top: dropdownPosition.top,
+                                    left: dropdownPosition.left,
                                   }}
                                 >
-                                  <Filter className="h-3 w-3" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start" className="w-56" side="bottom" sideOffset={4}>
-                                <DropdownMenuItem onClick={() => updateColumnFilter("name", "")}>
-                                  <span className="font-medium">All Models</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                {getUniqueValues("name").map((value) => (
-                                  <DropdownMenuItem
-                                    key={value}
-                                    onClick={() => updateColumnFilter("name", value)}
-                                    className={columnFilters.name === value ? "bg-azure-blue/10" : ""}
+                                  <button
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted font-medium"
+                                    onClick={() => {
+                                      updateColumnFilter("name", "")
+                                      closeDropdown()
+                                    }}
                                   >
-                                    {value}
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                                    All Models
+                                  </button>
+                                  <div className="border-t border-border my-1" />
+                                  {getUniqueValues("name").map((value) => (
+                                    <button
+                                      key={value}
+                                      className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
+                                        columnFilters.name === value ? "bg-azure-blue/10" : ""
+                                      }`}
+                                      onClick={() => {
+                                        updateColumnFilter("name", value)
+                                        closeDropdown()
+                                      }}
+                                    >
+                                      {value}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </TableHead>
                         <TableHead
@@ -707,42 +743,50 @@ function AzureModelDashboard() {
                               Status
                               <SortIcon field="status" />
                             </div>
-                            <DropdownMenu
-                              open={openDropdown === "status"}
-                              onOpenChange={(open) => {
-                                console.log("[v0] Status dropdown open state:", open)
-                                setOpenDropdown(open ? "status" : null)
-                              }}
-                            >
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className={`h-6 w-6 p-0 ${hasColumnFilter("status") ? "text-azure-blue" : "text-muted-foreground"}`}
-                                  onClick={(e) => {
-                                    console.log("[v0] Status filter button clicked")
-                                    e.stopPropagation()
+                            <div className="relative">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className={`h-6 w-6 p-0 ${hasColumnFilter("status") ? "text-azure-blue" : "text-muted-foreground"}`}
+                                onClick={(e) => handleFilterClick("status", e)}
+                              >
+                                <Filter className="h-3 w-3" />
+                              </Button>
+                              {openDropdown === "status" && dropdownPosition && (
+                                <div
+                                  className="filter-dropdown fixed z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[160px]"
+                                  style={{
+                                    top: dropdownPosition.top,
+                                    left: dropdownPosition.left,
                                   }}
                                 >
-                                  <Filter className="h-3 w-3" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start" className="w-40" side="bottom" sideOffset={4}>
-                                <DropdownMenuItem onClick={() => updateColumnFilter("status", "")}>
-                                  <span className="font-medium">All Status</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                {getUniqueValues("status").map((value) => (
-                                  <DropdownMenuItem
-                                    key={value}
-                                    onClick={() => updateColumnFilter("status", value)}
-                                    className={columnFilters.status === value ? "bg-azure-blue/10" : ""}
+                                  <button
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted font-medium"
+                                    onClick={() => {
+                                      updateColumnFilter("status", "")
+                                      closeDropdown()
+                                    }}
                                   >
-                                    {value}
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                                    All Status
+                                  </button>
+                                  <div className="border-t border-border my-1" />
+                                  {getUniqueValues("status").map((value) => (
+                                    <button
+                                      key={value}
+                                      className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
+                                        columnFilters.status === value ? "bg-azure-blue/10" : ""
+                                      }`}
+                                      onClick={() => {
+                                        updateColumnFilter("status", value)
+                                        closeDropdown()
+                                      }}
+                                    >
+                                      {value}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </TableHead>
                         <TableHead
@@ -754,42 +798,50 @@ function AzureModelDashboard() {
                               Version
                               <SortIcon field="version" />
                             </div>
-                            <DropdownMenu
-                              open={openDropdown === "version"}
-                              onOpenChange={(open) => {
-                                console.log("[v0] Version dropdown open state:", open)
-                                setOpenDropdown(open ? "version" : null)
-                              }}
-                            >
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className={`h-6 w-6 p-0 ${hasColumnFilter("version") ? "text-azure-blue" : "text-muted-foreground"}`}
-                                  onClick={(e) => {
-                                    console.log("[v0] Version filter button clicked")
-                                    e.stopPropagation()
+                            <div className="relative">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className={`h-6 w-6 p-0 ${hasColumnFilter("version") ? "text-azure-blue" : "text-muted-foreground"}`}
+                                onClick={(e) => handleFilterClick("version", e)}
+                              >
+                                <Filter className="h-3 w-3" />
+                              </Button>
+                              {openDropdown === "version" && dropdownPosition && (
+                                <div
+                                  className="filter-dropdown fixed z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[160px]"
+                                  style={{
+                                    top: dropdownPosition.top,
+                                    left: dropdownPosition.left,
                                   }}
                                 >
-                                  <Filter className="h-3 w-3" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start" className="w-40" side="bottom" sideOffset={4}>
-                                <DropdownMenuItem onClick={() => updateColumnFilter("version", "")}>
-                                  <span className="font-medium">All Versions</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                {getUniqueValues("version").map((value) => (
-                                  <DropdownMenuItem
-                                    key={value}
-                                    onClick={() => updateColumnFilter("version", value)}
-                                    className={columnFilters.version === value ? "bg-azure-blue/10" : ""}
+                                  <button
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted font-medium"
+                                    onClick={() => {
+                                      updateColumnFilter("version", "")
+                                      closeDropdown()
+                                    }}
                                   >
-                                    {value}
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                                    All Versions
+                                  </button>
+                                  <div className="border-t border-border my-1" />
+                                  {getUniqueValues("version").map((value) => (
+                                    <button
+                                      key={value}
+                                      className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
+                                        columnFilters.version === value ? "bg-azure-blue/10" : ""
+                                      }`}
+                                      onClick={() => {
+                                        updateColumnFilter("version", value)
+                                        closeDropdown()
+                                      }}
+                                    >
+                                      {value}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </TableHead>
                         <TableHead
@@ -801,42 +853,50 @@ function AzureModelDashboard() {
                               Deployment
                               <SortIcon field="deploymentName" />
                             </div>
-                            <DropdownMenu
-                              open={openDropdown === "deploymentName"}
-                              onOpenChange={(open) => {
-                                console.log("[v0] DeploymentName dropdown open state:", open)
-                                setOpenDropdown(open ? "deploymentName" : null)
-                              }}
-                            >
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className={`h-6 w-6 p-0 ${hasColumnFilter("deploymentName") ? "text-azure-blue" : "text-muted-foreground"}`}
-                                  onClick={(e) => {
-                                    console.log("[v0] Deployment filter button clicked")
-                                    e.stopPropagation()
+                            <div className="relative">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className={`h-6 w-6 p-0 ${hasColumnFilter("deploymentName") ? "text-azure-blue" : "text-muted-foreground"}`}
+                                onClick={(e) => handleFilterClick("deploymentName", e)}
+                              >
+                                <Filter className="h-3 w-3" />
+                              </Button>
+                              {openDropdown === "deploymentName" && dropdownPosition && (
+                                <div
+                                  className="filter-dropdown fixed z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[200px]"
+                                  style={{
+                                    top: dropdownPosition.top,
+                                    left: dropdownPosition.left,
                                   }}
                                 >
-                                  <Filter className="h-3 w-3" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start" className="w-56" side="bottom" sideOffset={4}>
-                                <DropdownMenuItem onClick={() => updateColumnFilter("deploymentName", "")}>
-                                  <span className="font-medium">All Deployments</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                {getUniqueValues("deploymentName").map((value) => (
-                                  <DropdownMenuItem
-                                    key={value}
-                                    onClick={() => updateColumnFilter("deploymentName", value)}
-                                    className={columnFilters.deploymentName === value ? "bg-azure-blue/10" : ""}
+                                  <button
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted font-medium"
+                                    onClick={() => {
+                                      updateColumnFilter("deploymentName", "")
+                                      closeDropdown()
+                                    }}
                                   >
-                                    {value}
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                                    All Deployments
+                                  </button>
+                                  <div className="border-t border-border my-1" />
+                                  {getUniqueValues("deploymentName").map((value) => (
+                                    <button
+                                      key={value}
+                                      className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
+                                        columnFilters.deploymentName === value ? "bg-azure-blue/10" : ""
+                                      }`}
+                                      onClick={() => {
+                                        updateColumnFilter("deploymentName", value)
+                                        closeDropdown()
+                                      }}
+                                    >
+                                      {value}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </TableHead>
                         <TableHead
@@ -848,42 +908,50 @@ function AzureModelDashboard() {
                               Resource
                               <SortIcon field="resourceName" />
                             </div>
-                            <DropdownMenu
-                              open={openDropdown === "resourceName"}
-                              onOpenChange={(open) => {
-                                console.log("[v0] ResourceName dropdown open state:", open)
-                                setOpenDropdown(open ? "resourceName" : null)
-                              }}
-                            >
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className={`h-6 w-6 p-0 ${hasColumnFilter("resourceName") ? "text-azure-blue" : "text-muted-foreground"}`}
-                                  onClick={(e) => {
-                                    console.log("[v0] Resource filter button clicked")
-                                    e.stopPropagation()
+                            <div className="relative">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className={`h-6 w-6 p-0 ${hasColumnFilter("resourceName") ? "text-azure-blue" : "text-muted-foreground"}`}
+                                onClick={(e) => handleFilterClick("resourceName", e)}
+                              >
+                                <Filter className="h-3 w-3" />
+                              </Button>
+                              {openDropdown === "resourceName" && dropdownPosition && (
+                                <div
+                                  className="filter-dropdown fixed z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[200px]"
+                                  style={{
+                                    top: dropdownPosition.top,
+                                    left: dropdownPosition.left,
                                   }}
                                 >
-                                  <Filter className="h-3 w-3" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start" className="w-56" side="bottom" sideOffset={4}>
-                                <DropdownMenuItem onClick={() => updateColumnFilter("resourceName", "")}>
-                                  <span className="font-medium">All Resources</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                {getUniqueValues("resourceName").map((value) => (
-                                  <DropdownMenuItem
-                                    key={value}
-                                    onClick={() => updateColumnFilter("resourceName", value)}
-                                    className={columnFilters.resourceName === value ? "bg-azure-blue/10" : ""}
+                                  <button
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted font-medium"
+                                    onClick={() => {
+                                      updateColumnFilter("resourceName", "")
+                                      closeDropdown()
+                                    }}
                                   >
-                                    {value}
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                                    All Resources
+                                  </button>
+                                  <div className="border-t border-border my-1" />
+                                  {getUniqueValues("resourceName").map((value) => (
+                                    <button
+                                      key={value}
+                                      className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
+                                        columnFilters.resourceName === value ? "bg-azure-blue/10" : ""
+                                      }`}
+                                      onClick={() => {
+                                        updateColumnFilter("resourceName", value)
+                                        closeDropdown()
+                                      }}
+                                    >
+                                      {value}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </TableHead>
                         <TableHead
@@ -895,42 +963,50 @@ function AzureModelDashboard() {
                               Region
                               <SortIcon field="region" />
                             </div>
-                            <DropdownMenu
-                              open={openDropdown === "region"}
-                              onOpenChange={(open) => {
-                                console.log("[v0] Region dropdown open state:", open)
-                                setOpenDropdown(open ? "region" : null)
-                              }}
-                            >
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className={`h-6 w-6 p-0 ${hasColumnFilter("region") ? "text-azure-blue" : "text-muted-foreground"}`}
-                                  onClick={(e) => {
-                                    console.log("[v0] Region filter button clicked")
-                                    e.stopPropagation()
+                            <div className="relative">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className={`h-6 w-6 p-0 ${hasColumnFilter("region") ? "text-azure-blue" : "text-muted-foreground"}`}
+                                onClick={(e) => handleFilterClick("region", e)}
+                              >
+                                <Filter className="h-3 w-3" />
+                              </Button>
+                              {openDropdown === "region" && dropdownPosition && (
+                                <div
+                                  className="filter-dropdown fixed z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[192px]"
+                                  style={{
+                                    top: dropdownPosition.top,
+                                    left: dropdownPosition.left,
                                   }}
                                 >
-                                  <Filter className="h-3 w-3" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start" className="w-48" side="bottom" sideOffset={4}>
-                                <DropdownMenuItem onClick={() => updateColumnFilter("region", "")}>
-                                  <span className="font-medium">All Regions</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                {getUniqueValues("region").map((value) => (
-                                  <DropdownMenuItem
-                                    key={value}
-                                    onClick={() => updateColumnFilter("region", value)}
-                                    className={columnFilters.region === value ? "bg-azure-blue/10" : ""}
+                                  <button
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted font-medium"
+                                    onClick={() => {
+                                      updateColumnFilter("region", "")
+                                      closeDropdown()
+                                    }}
                                   >
-                                    {value}
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                                    All Regions
+                                  </button>
+                                  <div className="border-t border-border my-1" />
+                                  {getUniqueValues("region").map((value) => (
+                                    <button
+                                      key={value}
+                                      className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
+                                        columnFilters.region === value ? "bg-azure-blue/10" : ""
+                                      }`}
+                                      onClick={() => {
+                                        updateColumnFilter("region", value)
+                                        closeDropdown()
+                                      }}
+                                    >
+                                      {value}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </TableHead>
                         <TableHead
@@ -942,42 +1018,50 @@ function AzureModelDashboard() {
                               Deprecation Date
                               <SortIcon field="deprecationDate" />
                             </div>
-                            <DropdownMenu
-                              open={openDropdown === "deprecationDate"}
-                              onOpenChange={(open) => {
-                                console.log("[v0] DeprecationDate dropdown open state:", open)
-                                setOpenDropdown(open ? "deprecationDate" : null)
-                              }}
-                            >
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className={`h-6 w-6 p-0 ${hasColumnFilter("deprecationDate") ? "text-azure-blue" : "text-muted-foreground"}`}
-                                  onClick={(e) => {
-                                    console.log("[v0] Deprecation Date filter button clicked")
-                                    e.stopPropagation()
+                            <div className="relative">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className={`h-6 w-6 p-0 ${hasColumnFilter("deprecationDate") ? "text-azure-blue" : "text-muted-foreground"}`}
+                                onClick={(e) => handleFilterClick("deprecationDate", e)}
+                              >
+                                <Filter className="h-3 w-3" />
+                              </Button>
+                              {openDropdown === "deprecationDate" && dropdownPosition && (
+                                <div
+                                  className="filter-dropdown fixed z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[192px]"
+                                  style={{
+                                    top: dropdownPosition.top,
+                                    left: dropdownPosition.left,
                                   }}
                                 >
-                                  <Filter className="h-3 w-3" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start" className="w-48" side="bottom" sideOffset={4}>
-                                <DropdownMenuItem onClick={() => updateColumnFilter("deprecationDate", "")}>
-                                  <span className="font-medium">All Dates</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                {getUniqueValues("deprecationDate").map((value) => (
-                                  <DropdownMenuItem
-                                    key={value}
-                                    onClick={() => updateColumnFilter("deprecationDate", value)}
-                                    className={columnFilters.deprecationDate === value ? "bg-azure-blue/10" : ""}
+                                  <button
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted font-medium"
+                                    onClick={() => {
+                                      updateColumnFilter("deprecationDate", "")
+                                      closeDropdown()
+                                    }}
                                   >
-                                    {value}
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                                    All Dates
+                                  </button>
+                                  <div className="border-t border-border my-1" />
+                                  {getUniqueValues("deprecationDate").map((value) => (
+                                    <button
+                                      key={value}
+                                      className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
+                                        columnFilters.deprecationDate === value ? "bg-azure-blue/10" : ""
+                                      }`}
+                                      onClick={() => {
+                                        updateColumnFilter("deprecationDate", value)
+                                        closeDropdown()
+                                      }}
+                                    >
+                                      {value}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </TableHead>
                         <TableHead
@@ -989,42 +1073,50 @@ function AzureModelDashboard() {
                               Retirement Date
                               <SortIcon field="retirementDate" />
                             </div>
-                            <DropdownMenu
-                              open={openDropdown === "retirementDate"}
-                              onOpenChange={(open) => {
-                                console.log("[v0] RetirementDate dropdown open state:", open)
-                                setOpenDropdown(open ? "retirementDate" : null)
-                              }}
-                            >
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className={`h-6 w-6 p-0 ${hasColumnFilter("retirementDate") ? "text-azure-blue" : "text-muted-foreground"}`}
-                                  onClick={(e) => {
-                                    console.log("[v0] Retirement Date filter button clicked")
-                                    e.stopPropagation()
+                            <div className="relative">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className={`h-6 w-6 p-0 ${hasColumnFilter("retirementDate") ? "text-azure-blue" : "text-muted-foreground"}`}
+                                onClick={(e) => handleFilterClick("retirementDate", e)}
+                              >
+                                <Filter className="h-3 w-3" />
+                              </Button>
+                              {openDropdown === "retirementDate" && dropdownPosition && (
+                                <div
+                                  className="filter-dropdown fixed z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[192px]"
+                                  style={{
+                                    top: dropdownPosition.top,
+                                    left: dropdownPosition.left,
                                   }}
                                 >
-                                  <Filter className="h-3 w-3" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start" className="w-48" side="bottom" sideOffset={4}>
-                                <DropdownMenuItem onClick={() => updateColumnFilter("retirementDate", "")}>
-                                  <span className="font-medium">All Dates</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                {getUniqueValues("retirementDate").map((value) => (
-                                  <DropdownMenuItem
-                                    key={value}
-                                    onClick={() => updateColumnFilter("retirementDate", value)}
-                                    className={columnFilters.retirementDate === value ? "bg-azure-blue/10" : ""}
+                                  <button
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted font-medium"
+                                    onClick={() => {
+                                      updateColumnFilter("retirementDate", "")
+                                      closeDropdown()
+                                    }}
                                   >
-                                    {value}
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                                    All Dates
+                                  </button>
+                                  <div className="border-t border-border my-1" />
+                                  {getUniqueValues("retirementDate").map((value) => (
+                                    <button
+                                      key={value}
+                                      className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
+                                        columnFilters.retirementDate === value ? "bg-azure-blue/10" : ""
+                                      }`}
+                                      onClick={() => {
+                                        updateColumnFilter("retirementDate", value)
+                                        closeDropdown()
+                                      }}
+                                    >
+                                      {value}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </TableHead>
                       </TableRow>
