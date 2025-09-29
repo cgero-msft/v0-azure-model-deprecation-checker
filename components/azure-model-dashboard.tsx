@@ -400,11 +400,6 @@ function AzureModelDashboard() {
     }
   }
 
-  useEffect(() => {
-    document.addEventListener("click", handleDocumentClick)
-    return () => document.removeEventListener("click", handleDocumentClick)
-  }, [openDropdown])
-
   const handleFilterClick = (column: string, event: React.MouseEvent) => {
     console.log("[v0] Filter button clicked for column:", column)
     event.stopPropagation()
@@ -413,14 +408,17 @@ function AzureModelDashboard() {
       closeDropdown()
     } else {
       const rect = event.currentTarget.getBoundingClientRect()
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop
+      const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft
+
       setDropdownPosition({
-        top: rect.bottom + window.scrollY + 4,
-        left: rect.left + window.scrollX,
+        top: rect.bottom + scrollTop + 4,
+        left: rect.left + scrollLeft,
       })
       setOpenDropdown(column)
       console.log("[v0] Opening dropdown for column:", column, "at position:", {
-        top: rect.bottom + window.scrollY + 4,
-        left: rect.left + window.scrollX,
+        top: rect.bottom + scrollTop + 4,
+        left: rect.left + scrollLeft,
       })
     }
   }
@@ -429,6 +427,31 @@ function AzureModelDashboard() {
     setOpenDropdown(null)
     setDropdownPosition(null)
   }
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (openDropdown && dropdownPosition) {
+        // Close dropdown on scroll to prevent positioning issues
+        closeDropdown()
+      }
+    }
+
+    const handleResize = () => {
+      if (openDropdown) {
+        closeDropdown()
+      }
+    }
+
+    document.addEventListener("click", handleDocumentClick)
+    window.addEventListener("scroll", handleScroll, true)
+    window.addEventListener("resize", handleResize)
+
+    return () => {
+      document.removeEventListener("click", handleDocumentClick)
+      window.removeEventListener("scroll", handleScroll, true)
+      window.removeEventListener("resize", handleResize)
+    }
+  }, [openDropdown, dropdownPosition])
 
   const filteredAndSortedModels = models
     .filter((model) => {
@@ -521,8 +544,10 @@ function AzureModelDashboard() {
       <div
         className="filter-dropdown fixed z-[9999] bg-background border border-border rounded-md shadow-lg py-1 min-w-[200px] max-h-60 overflow-y-auto"
         style={{
-          top: dropdownPosition.top,
-          left: dropdownPosition.left,
+          position: "fixed",
+          top: `${dropdownPosition.top}px`,
+          left: `${dropdownPosition.left}px`,
+          transform: "translateX(-50%)", // Center horizontally relative to the button
         }}
       >
         <button
