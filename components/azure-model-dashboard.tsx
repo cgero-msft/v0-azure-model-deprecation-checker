@@ -376,6 +376,7 @@ function AzureModelDashboard() {
   }
 
   const getUniqueValues = (field: keyof AzureModel): string[] => {
+    console.log("[v0] Getting unique values for field:", field)
     const values = models.map((model) => {
       const value = model[field]
       if (field === "deprecationDate" || field === "retirementDate") {
@@ -383,7 +384,9 @@ function AzureModelDashboard() {
       }
       return value?.toString() || "N/A"
     })
-    return Array.from(new Set(values)).sort()
+    const uniqueValues = Array.from(new Set(values)).sort()
+    console.log("[v0] Unique values for", field, ":", uniqueValues)
+    return uniqueValues
   }
 
   const hasColumnFilter = (column: keyof ColumnFilters): boolean => {
@@ -410,10 +413,14 @@ function AzureModelDashboard() {
     } else {
       const rect = event.currentTarget.getBoundingClientRect()
       setDropdownPosition({
-        top: rect.bottom + window.scrollY + 4,
-        left: rect.left + window.scrollX,
+        top: rect.bottom + 4,
+        left: rect.left,
       })
       setOpenDropdown(column)
+      console.log("[v0] Opening dropdown for column:", column, "at position:", {
+        top: rect.bottom + 4,
+        left: rect.left,
+      })
     }
   }
 
@@ -699,7 +706,7 @@ function AzureModelDashboard() {
                               </Button>
                               {openDropdown === "name" && dropdownPosition && (
                                 <div
-                                  className="filter-dropdown fixed z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[200px]"
+                                  className="filter-dropdown absolute z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[200px] max-h-60 overflow-y-auto"
                                   style={{
                                     top: dropdownPosition.top,
                                     left: dropdownPosition.left,
@@ -708,27 +715,30 @@ function AzureModelDashboard() {
                                   <button
                                     className="w-full px-3 py-2 text-left text-sm hover:bg-muted font-medium"
                                     onClick={() => {
+                                      console.log("[v0] Clearing name filter")
                                       updateColumnFilter("name", "")
-                                      closeDropdown()
                                     }}
                                   >
                                     All Models
                                   </button>
                                   <div className="border-t border-border my-1" />
-                                  {getUniqueValues("name").map((value) => (
-                                    <button
-                                      key={value}
-                                      className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
-                                        columnFilters.name === value ? "bg-azure-blue/10" : ""
-                                      }`}
-                                      onClick={() => {
-                                        updateColumnFilter("name", value)
-                                        closeDropdown()
-                                      }}
-                                    >
-                                      {value}
-                                    </button>
-                                  ))}
+                                  {getUniqueValues("name").map((value, index) => {
+                                    console.log("[v0] Rendering name option:", value, "index:", index)
+                                    return (
+                                      <button
+                                        key={`name-${value}-${index}`}
+                                        className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
+                                          columnFilters.name === value ? "bg-azure-blue/10" : ""
+                                        }`}
+                                        onClick={() => {
+                                          console.log("[v0] Selecting name filter:", value)
+                                          updateColumnFilter("name", value)
+                                        }}
+                                      >
+                                        {value}
+                                      </button>
+                                    )
+                                  })}
                                 </div>
                               )}
                             </div>
@@ -754,7 +764,7 @@ function AzureModelDashboard() {
                               </Button>
                               {openDropdown === "status" && dropdownPosition && (
                                 <div
-                                  className="filter-dropdown fixed z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[160px]"
+                                  className="filter-dropdown absolute z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[160px] max-h-60 overflow-y-auto"
                                   style={{
                                     top: dropdownPosition.top,
                                     left: dropdownPosition.left,
@@ -763,27 +773,30 @@ function AzureModelDashboard() {
                                   <button
                                     className="w-full px-3 py-2 text-left text-sm hover:bg-muted font-medium"
                                     onClick={() => {
+                                      console.log("[v0] Clearing status filter")
                                       updateColumnFilter("status", "")
-                                      closeDropdown()
                                     }}
                                   >
                                     All Status
                                   </button>
                                   <div className="border-t border-border my-1" />
-                                  {getUniqueValues("status").map((value) => (
-                                    <button
-                                      key={value}
-                                      className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
-                                        columnFilters.status === value ? "bg-azure-blue/10" : ""
-                                      }`}
-                                      onClick={() => {
-                                        updateColumnFilter("status", value)
-                                        closeDropdown()
-                                      }}
-                                    >
-                                      {value}
-                                    </button>
-                                  ))}
+                                  {getUniqueValues("status").map((value, index) => {
+                                    console.log("[v0] Rendering status option:", value, "index:", index)
+                                    return (
+                                      <button
+                                        key={`status-${value}-${index}`}
+                                        className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
+                                          columnFilters.status === value ? "bg-azure-blue/10" : ""
+                                        }`}
+                                        onClick={() => {
+                                          console.log("[v0] Selecting status filter:", value)
+                                          updateColumnFilter("status", value)
+                                        }}
+                                      >
+                                        {value}
+                                      </button>
+                                    )
+                                  })}
                                 </div>
                               )}
                             </div>
@@ -809,7 +822,7 @@ function AzureModelDashboard() {
                               </Button>
                               {openDropdown === "version" && dropdownPosition && (
                                 <div
-                                  className="filter-dropdown fixed z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[160px]"
+                                  className="filter-dropdown absolute z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[160px] max-h-60 overflow-y-auto"
                                   style={{
                                     top: dropdownPosition.top,
                                     left: dropdownPosition.left,
@@ -818,27 +831,30 @@ function AzureModelDashboard() {
                                   <button
                                     className="w-full px-3 py-2 text-left text-sm hover:bg-muted font-medium"
                                     onClick={() => {
+                                      console.log("[v0] Clearing version filter")
                                       updateColumnFilter("version", "")
-                                      closeDropdown()
                                     }}
                                   >
                                     All Versions
                                   </button>
                                   <div className="border-t border-border my-1" />
-                                  {getUniqueValues("version").map((value) => (
-                                    <button
-                                      key={value}
-                                      className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
-                                        columnFilters.version === value ? "bg-azure-blue/10" : ""
-                                      }`}
-                                      onClick={() => {
-                                        updateColumnFilter("version", value)
-                                        closeDropdown()
-                                      }}
-                                    >
-                                      {value}
-                                    </button>
-                                  ))}
+                                  {getUniqueValues("version").map((value, index) => {
+                                    console.log("[v0] Rendering version option:", value, "index:", index)
+                                    return (
+                                      <button
+                                        key={`version-${value}-${index}`}
+                                        className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
+                                          columnFilters.version === value ? "bg-azure-blue/10" : ""
+                                        }`}
+                                        onClick={() => {
+                                          console.log("[v0] Selecting version filter:", value)
+                                          updateColumnFilter("version", value)
+                                        }}
+                                      >
+                                        {value}
+                                      </button>
+                                    )
+                                  })}
                                 </div>
                               )}
                             </div>
@@ -864,7 +880,7 @@ function AzureModelDashboard() {
                               </Button>
                               {openDropdown === "deploymentName" && dropdownPosition && (
                                 <div
-                                  className="filter-dropdown fixed z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[200px]"
+                                  className="filter-dropdown absolute z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[200px] max-h-60 overflow-y-auto"
                                   style={{
                                     top: dropdownPosition.top,
                                     left: dropdownPosition.left,
@@ -873,27 +889,30 @@ function AzureModelDashboard() {
                                   <button
                                     className="w-full px-3 py-2 text-left text-sm hover:bg-muted font-medium"
                                     onClick={() => {
+                                      console.log("[v0] Clearing deploymentName filter")
                                       updateColumnFilter("deploymentName", "")
-                                      closeDropdown()
                                     }}
                                   >
                                     All Deployments
                                   </button>
                                   <div className="border-t border-border my-1" />
-                                  {getUniqueValues("deploymentName").map((value) => (
-                                    <button
-                                      key={value}
-                                      className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
-                                        columnFilters.deploymentName === value ? "bg-azure-blue/10" : ""
-                                      }`}
-                                      onClick={() => {
-                                        updateColumnFilter("deploymentName", value)
-                                        closeDropdown()
-                                      }}
-                                    >
-                                      {value}
-                                    </button>
-                                  ))}
+                                  {getUniqueValues("deploymentName").map((value, index) => {
+                                    console.log("[v0] Rendering deploymentName option:", value, "index:", index)
+                                    return (
+                                      <button
+                                        key={`deploymentName-${value}-${index}`}
+                                        className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
+                                          columnFilters.deploymentName === value ? "bg-azure-blue/10" : ""
+                                        }`}
+                                        onClick={() => {
+                                          console.log("[v0] Selecting deploymentName filter:", value)
+                                          updateColumnFilter("deploymentName", value)
+                                        }}
+                                      >
+                                        {value}
+                                      </button>
+                                    )
+                                  })}
                                 </div>
                               )}
                             </div>
@@ -919,7 +938,7 @@ function AzureModelDashboard() {
                               </Button>
                               {openDropdown === "resourceName" && dropdownPosition && (
                                 <div
-                                  className="filter-dropdown fixed z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[200px]"
+                                  className="filter-dropdown absolute z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[200px] max-h-60 overflow-y-auto"
                                   style={{
                                     top: dropdownPosition.top,
                                     left: dropdownPosition.left,
@@ -928,27 +947,30 @@ function AzureModelDashboard() {
                                   <button
                                     className="w-full px-3 py-2 text-left text-sm hover:bg-muted font-medium"
                                     onClick={() => {
+                                      console.log("[v0] Clearing resourceName filter")
                                       updateColumnFilter("resourceName", "")
-                                      closeDropdown()
                                     }}
                                   >
                                     All Resources
                                   </button>
                                   <div className="border-t border-border my-1" />
-                                  {getUniqueValues("resourceName").map((value) => (
-                                    <button
-                                      key={value}
-                                      className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
-                                        columnFilters.resourceName === value ? "bg-azure-blue/10" : ""
-                                      }`}
-                                      onClick={() => {
-                                        updateColumnFilter("resourceName", value)
-                                        closeDropdown()
-                                      }}
-                                    >
-                                      {value}
-                                    </button>
-                                  ))}
+                                  {getUniqueValues("resourceName").map((value, index) => {
+                                    console.log("[v0] Rendering resourceName option:", value, "index:", index)
+                                    return (
+                                      <button
+                                        key={`resourceName-${value}-${index}`}
+                                        className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
+                                          columnFilters.resourceName === value ? "bg-azure-blue/10" : ""
+                                        }`}
+                                        onClick={() => {
+                                          console.log("[v0] Selecting resourceName filter:", value)
+                                          updateColumnFilter("resourceName", value)
+                                        }}
+                                      >
+                                        {value}
+                                      </button>
+                                    )
+                                  })}
                                 </div>
                               )}
                             </div>
@@ -974,7 +996,7 @@ function AzureModelDashboard() {
                               </Button>
                               {openDropdown === "region" && dropdownPosition && (
                                 <div
-                                  className="filter-dropdown fixed z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[192px]"
+                                  className="filter-dropdown absolute z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[192px] max-h-60 overflow-y-auto"
                                   style={{
                                     top: dropdownPosition.top,
                                     left: dropdownPosition.left,
@@ -983,27 +1005,30 @@ function AzureModelDashboard() {
                                   <button
                                     className="w-full px-3 py-2 text-left text-sm hover:bg-muted font-medium"
                                     onClick={() => {
+                                      console.log("[v0] Clearing region filter")
                                       updateColumnFilter("region", "")
-                                      closeDropdown()
                                     }}
                                   >
                                     All Regions
                                   </button>
                                   <div className="border-t border-border my-1" />
-                                  {getUniqueValues("region").map((value) => (
-                                    <button
-                                      key={value}
-                                      className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
-                                        columnFilters.region === value ? "bg-azure-blue/10" : ""
-                                      }`}
-                                      onClick={() => {
-                                        updateColumnFilter("region", value)
-                                        closeDropdown()
-                                      }}
-                                    >
-                                      {value}
-                                    </button>
-                                  ))}
+                                  {getUniqueValues("region").map((value, index) => {
+                                    console.log("[v0] Rendering region option:", value, "index:", index)
+                                    return (
+                                      <button
+                                        key={`region-${value}-${index}`}
+                                        className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
+                                          columnFilters.region === value ? "bg-azure-blue/10" : ""
+                                        }`}
+                                        onClick={() => {
+                                          console.log("[v0] Selecting region filter:", value)
+                                          updateColumnFilter("region", value)
+                                        }}
+                                      >
+                                        {value}
+                                      </button>
+                                    )
+                                  })}
                                 </div>
                               )}
                             </div>
@@ -1029,7 +1054,7 @@ function AzureModelDashboard() {
                               </Button>
                               {openDropdown === "deprecationDate" && dropdownPosition && (
                                 <div
-                                  className="filter-dropdown fixed z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[192px]"
+                                  className="filter-dropdown absolute z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[192px] max-h-60 overflow-y-auto"
                                   style={{
                                     top: dropdownPosition.top,
                                     left: dropdownPosition.left,
@@ -1038,27 +1063,30 @@ function AzureModelDashboard() {
                                   <button
                                     className="w-full px-3 py-2 text-left text-sm hover:bg-muted font-medium"
                                     onClick={() => {
+                                      console.log("[v0] Clearing deprecationDate filter")
                                       updateColumnFilter("deprecationDate", "")
-                                      closeDropdown()
                                     }}
                                   >
                                     All Dates
                                   </button>
                                   <div className="border-t border-border my-1" />
-                                  {getUniqueValues("deprecationDate").map((value) => (
-                                    <button
-                                      key={value}
-                                      className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
-                                        columnFilters.deprecationDate === value ? "bg-azure-blue/10" : ""
-                                      }`}
-                                      onClick={() => {
-                                        updateColumnFilter("deprecationDate", value)
-                                        closeDropdown()
-                                      }}
-                                    >
-                                      {value}
-                                    </button>
-                                  ))}
+                                  {getUniqueValues("deprecationDate").map((value, index) => {
+                                    console.log("[v0] Rendering deprecationDate option:", value, "index:", index)
+                                    return (
+                                      <button
+                                        key={`deprecationDate-${value}-${index}`}
+                                        className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
+                                          columnFilters.deprecationDate === value ? "bg-azure-blue/10" : ""
+                                        }`}
+                                        onClick={() => {
+                                          console.log("[v0] Selecting deprecationDate filter:", value)
+                                          updateColumnFilter("deprecationDate", value)
+                                        }}
+                                      >
+                                        {value}
+                                      </button>
+                                    )
+                                  })}
                                 </div>
                               )}
                             </div>
@@ -1084,7 +1112,7 @@ function AzureModelDashboard() {
                               </Button>
                               {openDropdown === "retirementDate" && dropdownPosition && (
                                 <div
-                                  className="filter-dropdown fixed z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[192px]"
+                                  className="filter-dropdown absolute z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[192px] max-h-60 overflow-y-auto"
                                   style={{
                                     top: dropdownPosition.top,
                                     left: dropdownPosition.left,
@@ -1093,27 +1121,30 @@ function AzureModelDashboard() {
                                   <button
                                     className="w-full px-3 py-2 text-left text-sm hover:bg-muted font-medium"
                                     onClick={() => {
+                                      console.log("[v0] Clearing retirementDate filter")
                                       updateColumnFilter("retirementDate", "")
-                                      closeDropdown()
                                     }}
                                   >
                                     All Dates
                                   </button>
                                   <div className="border-t border-border my-1" />
-                                  {getUniqueValues("retirementDate").map((value) => (
-                                    <button
-                                      key={value}
-                                      className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
-                                        columnFilters.retirementDate === value ? "bg-azure-blue/10" : ""
-                                      }`}
-                                      onClick={() => {
-                                        updateColumnFilter("retirementDate", value)
-                                        closeDropdown()
-                                      }}
-                                    >
-                                      {value}
-                                    </button>
-                                  ))}
+                                  {getUniqueValues("retirementDate").map((value, index) => {
+                                    console.log("[v0] Rendering retirementDate option:", value, "index:", index)
+                                    return (
+                                      <button
+                                        key={`retirementDate-${value}-${index}`}
+                                        className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
+                                          columnFilters.retirementDate === value ? "bg-azure-blue/10" : ""
+                                        }`}
+                                        onClick={() => {
+                                          console.log("[v0] Selecting retirementDate filter:", value)
+                                          updateColumnFilter("retirementDate", value)
+                                        }}
+                                      >
+                                        {value}
+                                      </button>
+                                    )
+                                  })}
                                 </div>
                               )}
                             </div>
