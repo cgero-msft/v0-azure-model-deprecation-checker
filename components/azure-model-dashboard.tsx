@@ -93,6 +93,7 @@ function AzureModelDashboard() {
   const [copied, setCopied] = useState(false)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null)
+  const [activeButtonRef, setActiveButtonRef] = useState<HTMLElement | null>(null)
 
   const updateColumnFilter = (column: keyof ColumnFilters, value: string) => {
     console.log("[v0] Updating column filter:", column, "to:", value)
@@ -407,10 +408,13 @@ function AzureModelDashboard() {
     if (openDropdown === column) {
       closeDropdown()
     } else {
-      const rect = event.currentTarget.getBoundingClientRect()
+      const buttonElement = event.currentTarget as HTMLElement
+      setActiveButtonRef(buttonElement)
+
+      const rect = buttonElement.getBoundingClientRect()
       setDropdownPosition({
-        top: rect.bottom + 4, // Just add small offset below the button
-        left: rect.left + rect.width / 2, // Center horizontally on the button
+        top: rect.bottom + 4,
+        left: rect.left + rect.width / 2,
       })
       setOpenDropdown(column)
       console.log("[v0] Opening dropdown for column:", column, "at position:", {
@@ -423,22 +427,32 @@ function AzureModelDashboard() {
   const closeDropdown = () => {
     setOpenDropdown(null)
     setDropdownPosition(null)
+    setActiveButtonRef(null)
+  }
+
+  const updateDropdownPosition = () => {
+    if (activeButtonRef && openDropdown) {
+      const rect = activeButtonRef.getBoundingClientRect()
+      setDropdownPosition({
+        top: rect.bottom + 4,
+        left: rect.left + rect.width / 2,
+      })
+    }
   }
 
   useEffect(() => {
     const handleScroll = (event: Event) => {
       if (openDropdown && dropdownPosition) {
         const target = event.target as Element
-        // Check if the scroll event is coming from the dropdown itself
         if (!target.closest(".filter-dropdown")) {
-          closeDropdown()
+          updateDropdownPosition()
         }
       }
     }
 
     const handleResize = () => {
       if (openDropdown) {
-        closeDropdown()
+        updateDropdownPosition()
       }
     }
 
@@ -451,11 +465,10 @@ function AzureModelDashboard() {
       window.removeEventListener("scroll", handleScroll, true)
       window.removeEventListener("resize", handleResize)
     }
-  }, [openDropdown, dropdownPosition])
+  }, [openDropdown, dropdownPosition, activeButtonRef])
 
   const filteredAndSortedModels = models
     .filter((model) => {
-      // Global search filter
       const matchesSearch =
         searchTerm === "" ||
         model.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -547,7 +560,7 @@ function AzureModelDashboard() {
           position: "fixed",
           top: `${dropdownPosition.top}px`,
           left: `${dropdownPosition.left}px`,
-          transform: "translateX(-50%)", // Center horizontally relative to the button
+          transform: "translateX(-50%)",
         }}
         onScroll={(e) => e.stopPropagation()}
       >
