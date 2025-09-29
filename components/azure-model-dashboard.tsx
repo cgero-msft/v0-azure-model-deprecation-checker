@@ -1068,6 +1068,15 @@ function AzureModelDashboard() {
           </Card>
         )}
       </div>
+
+      {/* Footer */}
+      <footer className="border-t border-border bg-card mt-12">
+        <div className="container mx-auto px-6 py-4">
+          <p className="text-center text-sm text-muted-foreground">
+            built for the community by FoundryAppEng@microsoft.com
+          </p>
+        </div>
+      </footer>
     </div>
   )
 }
