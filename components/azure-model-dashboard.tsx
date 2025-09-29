@@ -95,12 +95,15 @@ function AzureModelDashboard() {
   })
 
   const [copied, setCopied] = useState(false)
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null)
 
   const updateColumnFilter = (column: keyof ColumnFilters, value: string) => {
+    console.log("[v0] Updating column filter:", column, "to:", value)
     setColumnFilters((prev) => ({
       ...prev,
       [column]: value,
     }))
+    setOpenDropdown(null) // Close dropdown after selection
   }
 
   const clearAllFilters = () => {
@@ -657,18 +660,27 @@ function AzureModelDashboard() {
                               Model
                               <SortIcon field="name" />
                             </div>
-                            <DropdownMenu>
+                            <DropdownMenu
+                              open={openDropdown === "name"}
+                              onOpenChange={(open) => {
+                                console.log("[v0] Name dropdown open state:", open)
+                                setOpenDropdown(open ? "name" : null)
+                              }}
+                            >
                               <DropdownMenuTrigger asChild>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   className={`h-6 w-6 p-0 ${hasColumnFilter("name") ? "text-azure-blue" : "text-muted-foreground"}`}
-                                  onClick={(e) => e.stopPropagation()}
+                                  onClick={(e) => {
+                                    console.log("[v0] Name filter button clicked")
+                                    e.stopPropagation()
+                                  }}
                                 >
                                   <Filter className="h-3 w-3" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start" className="w-56">
+                              <DropdownMenuContent align="start" className="w-56" side="bottom" sideOffset={4}>
                                 <DropdownMenuItem onClick={() => updateColumnFilter("name", "")}>
                                   <span className="font-medium">All Models</span>
                                 </DropdownMenuItem>
@@ -695,18 +707,27 @@ function AzureModelDashboard() {
                               Status
                               <SortIcon field="status" />
                             </div>
-                            <DropdownMenu>
+                            <DropdownMenu
+                              open={openDropdown === "status"}
+                              onOpenChange={(open) => {
+                                console.log("[v0] Status dropdown open state:", open)
+                                setOpenDropdown(open ? "status" : null)
+                              }}
+                            >
                               <DropdownMenuTrigger asChild>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   className={`h-6 w-6 p-0 ${hasColumnFilter("status") ? "text-azure-blue" : "text-muted-foreground"}`}
-                                  onClick={(e) => e.stopPropagation()}
+                                  onClick={(e) => {
+                                    console.log("[v0] Status filter button clicked")
+                                    e.stopPropagation()
+                                  }}
                                 >
                                   <Filter className="h-3 w-3" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start" className="w-40">
+                              <DropdownMenuContent align="start" className="w-40" side="bottom" sideOffset={4}>
                                 <DropdownMenuItem onClick={() => updateColumnFilter("status", "")}>
                                   <span className="font-medium">All Status</span>
                                 </DropdownMenuItem>
@@ -733,18 +754,27 @@ function AzureModelDashboard() {
                               Version
                               <SortIcon field="version" />
                             </div>
-                            <DropdownMenu>
+                            <DropdownMenu
+                              open={openDropdown === "version"}
+                              onOpenChange={(open) => {
+                                console.log("[v0] Version dropdown open state:", open)
+                                setOpenDropdown(open ? "version" : null)
+                              }}
+                            >
                               <DropdownMenuTrigger asChild>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   className={`h-6 w-6 p-0 ${hasColumnFilter("version") ? "text-azure-blue" : "text-muted-foreground"}`}
-                                  onClick={(e) => e.stopPropagation()}
+                                  onClick={(e) => {
+                                    console.log("[v0] Version filter button clicked")
+                                    e.stopPropagation()
+                                  }}
                                 >
                                   <Filter className="h-3 w-3" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start" className="w-40">
+                              <DropdownMenuContent align="start" className="w-40" side="bottom" sideOffset={4}>
                                 <DropdownMenuItem onClick={() => updateColumnFilter("version", "")}>
                                   <span className="font-medium">All Versions</span>
                                 </DropdownMenuItem>
@@ -771,18 +801,27 @@ function AzureModelDashboard() {
                               Deployment
                               <SortIcon field="deploymentName" />
                             </div>
-                            <DropdownMenu>
+                            <DropdownMenu
+                              open={openDropdown === "deploymentName"}
+                              onOpenChange={(open) => {
+                                console.log("[v0] DeploymentName dropdown open state:", open)
+                                setOpenDropdown(open ? "deploymentName" : null)
+                              }}
+                            >
                               <DropdownMenuTrigger asChild>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   className={`h-6 w-6 p-0 ${hasColumnFilter("deploymentName") ? "text-azure-blue" : "text-muted-foreground"}`}
-                                  onClick={(e) => e.stopPropagation()}
+                                  onClick={(e) => {
+                                    console.log("[v0] Deployment filter button clicked")
+                                    e.stopPropagation()
+                                  }}
                                 >
                                   <Filter className="h-3 w-3" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start" className="w-56">
+                              <DropdownMenuContent align="start" className="w-56" side="bottom" sideOffset={4}>
                                 <DropdownMenuItem onClick={() => updateColumnFilter("deploymentName", "")}>
                                   <span className="font-medium">All Deployments</span>
                                 </DropdownMenuItem>
@@ -809,18 +848,27 @@ function AzureModelDashboard() {
                               Resource
                               <SortIcon field="resourceName" />
                             </div>
-                            <DropdownMenu>
+                            <DropdownMenu
+                              open={openDropdown === "resourceName"}
+                              onOpenChange={(open) => {
+                                console.log("[v0] ResourceName dropdown open state:", open)
+                                setOpenDropdown(open ? "resourceName" : null)
+                              }}
+                            >
                               <DropdownMenuTrigger asChild>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   className={`h-6 w-6 p-0 ${hasColumnFilter("resourceName") ? "text-azure-blue" : "text-muted-foreground"}`}
-                                  onClick={(e) => e.stopPropagation()}
+                                  onClick={(e) => {
+                                    console.log("[v0] Resource filter button clicked")
+                                    e.stopPropagation()
+                                  }}
                                 >
                                   <Filter className="h-3 w-3" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start" className="w-56">
+                              <DropdownMenuContent align="start" className="w-56" side="bottom" sideOffset={4}>
                                 <DropdownMenuItem onClick={() => updateColumnFilter("resourceName", "")}>
                                   <span className="font-medium">All Resources</span>
                                 </DropdownMenuItem>
@@ -847,18 +895,27 @@ function AzureModelDashboard() {
                               Region
                               <SortIcon field="region" />
                             </div>
-                            <DropdownMenu>
+                            <DropdownMenu
+                              open={openDropdown === "region"}
+                              onOpenChange={(open) => {
+                                console.log("[v0] Region dropdown open state:", open)
+                                setOpenDropdown(open ? "region" : null)
+                              }}
+                            >
                               <DropdownMenuTrigger asChild>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   className={`h-6 w-6 p-0 ${hasColumnFilter("region") ? "text-azure-blue" : "text-muted-foreground"}`}
-                                  onClick={(e) => e.stopPropagation()}
+                                  onClick={(e) => {
+                                    console.log("[v0] Region filter button clicked")
+                                    e.stopPropagation()
+                                  }}
                                 >
                                   <Filter className="h-3 w-3" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start" className="w-48">
+                              <DropdownMenuContent align="start" className="w-48" side="bottom" sideOffset={4}>
                                 <DropdownMenuItem onClick={() => updateColumnFilter("region", "")}>
                                   <span className="font-medium">All Regions</span>
                                 </DropdownMenuItem>
@@ -885,18 +942,27 @@ function AzureModelDashboard() {
                               Deprecation Date
                               <SortIcon field="deprecationDate" />
                             </div>
-                            <DropdownMenu>
+                            <DropdownMenu
+                              open={openDropdown === "deprecationDate"}
+                              onOpenChange={(open) => {
+                                console.log("[v0] DeprecationDate dropdown open state:", open)
+                                setOpenDropdown(open ? "deprecationDate" : null)
+                              }}
+                            >
                               <DropdownMenuTrigger asChild>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   className={`h-6 w-6 p-0 ${hasColumnFilter("deprecationDate") ? "text-azure-blue" : "text-muted-foreground"}`}
-                                  onClick={(e) => e.stopPropagation()}
+                                  onClick={(e) => {
+                                    console.log("[v0] Deprecation Date filter button clicked")
+                                    e.stopPropagation()
+                                  }}
                                 >
                                   <Filter className="h-3 w-3" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start" className="w-48">
+                              <DropdownMenuContent align="start" className="w-48" side="bottom" sideOffset={4}>
                                 <DropdownMenuItem onClick={() => updateColumnFilter("deprecationDate", "")}>
                                   <span className="font-medium">All Dates</span>
                                 </DropdownMenuItem>
@@ -923,18 +989,27 @@ function AzureModelDashboard() {
                               Retirement Date
                               <SortIcon field="retirementDate" />
                             </div>
-                            <DropdownMenu>
+                            <DropdownMenu
+                              open={openDropdown === "retirementDate"}
+                              onOpenChange={(open) => {
+                                console.log("[v0] RetirementDate dropdown open state:", open)
+                                setOpenDropdown(open ? "retirementDate" : null)
+                              }}
+                            >
                               <DropdownMenuTrigger asChild>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   className={`h-6 w-6 p-0 ${hasColumnFilter("retirementDate") ? "text-azure-blue" : "text-muted-foreground"}`}
-                                  onClick={(e) => e.stopPropagation()}
+                                  onClick={(e) => {
+                                    console.log("[v0] Retirement Date filter button clicked")
+                                    e.stopPropagation()
+                                  }}
                                 >
                                   <Filter className="h-3 w-3" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start" className="w-48">
+                              <DropdownMenuContent align="start" className="w-48" side="bottom" sideOffset={4}>
                                 <DropdownMenuItem onClick={() => updateColumnFilter("retirementDate", "")}>
                                   <span className="font-medium">All Dates</span>
                                 </DropdownMenuItem>
