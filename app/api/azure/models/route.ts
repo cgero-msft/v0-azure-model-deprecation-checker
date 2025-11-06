@@ -84,6 +84,42 @@ export async function GET(request: NextRequest) {
     const resourcesData = await resourcesResponse.json()
     console.log("[v0] Found", resourcesData.value?.length || 0, "OpenAI resources")
 
+    const modelsByRegion: Map<string, Map<string, AzureModel>> = new Map()
+
+    const regions = new Set(resourcesData.value?.map((r: AzureResource) => r.location) || [])
+
+    for (const region of regions) {
+      try {
+        console.log("[v0] Fetching available models for region:", region)
+        const modelsResponse = await fetch(
+          `https://management.azure.com/subscriptions/${subscriptionId}/providers/Microsoft.CognitiveServices/locations/${region}/models?api-version=2023-05-01`,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "application/json",
+            },
+          },
+        )
+
+        if (modelsResponse.ok) {
+          const modelsData = await modelsResponse.json()
+          console.log("[v0] Found", modelsData.value?.length || 0, "models in region", region)
+
+          const regionModels = new Map<string, AzureModel>()
+          modelsData.value?.forEach((model: any) => {
+            // Store by model name and version combination
+            const key = `${model.model?.name || model.name}-${model.model?.version || model.version || "default"}`
+            regionModels.set(key, model)
+          })
+          modelsByRegion.set(region, regionModels)
+        } else {
+          console.log("[v0] Could not fetch models for region", region, "- status:", modelsResponse.status)
+        }
+      } catch (modelsError) {
+        console.log("[v0] Error fetching models for region", region, ":", modelsError)
+      }
+    }
+
     const allModels = []
 
     for (const resource of resourcesData.value || []) {
@@ -93,31 +129,6 @@ export async function GET(request: NextRequest) {
         const resourceGroup = resource.id.split("/")[4]
         const resourceName = resource.name
         const region = resource.location
-        const endpoint = resource.properties.endpoint
-
-        const modelsWithDeprecation: Map<string, AzureModel> = new Map()
-        try {
-          const modelsResponse = await fetch(`${endpoint}/openai/models?api-version=2024-10-21`, {
-            headers: {
-              "api-key": accessToken,
-              "Content-Type": "application/json",
-            },
-          })
-
-          if (modelsResponse.ok) {
-            const modelsData: ModelsListResponse = await modelsResponse.json()
-            console.log("[v0] Fetched", modelsData.data?.length || 0, "models with deprecation info for", resourceName)
-
-            // Create a map of model names to their deprecation info
-            modelsData.data.forEach((model) => {
-              modelsWithDeprecation.set(model.id, model)
-            })
-          } else {
-            console.log("[v0] Could not fetch models list for", resourceName, "- status:", modelsResponse.status)
-          }
-        } catch (modelsError) {
-          console.log("[v0] Error fetching models list for", resourceName, ":", modelsError)
-        }
 
         // Get deployments using Management API
         const deploymentsResponse = await fetch(
@@ -156,25 +167,40 @@ export async function GET(request: NextRequest) {
           let deprecationDate = null
           let retirementDate = null
 
-          // Look up deprecation info from the models API
-          const modelInfo = modelsWithDeprecation.get(modelName)
-          if (modelInfo?.deprecation) {
-            // If there's a deprecation timestamp, the model is deprecated
-            if (modelInfo.deprecation.inference) {
-              const inferenceDeprecationTime = modelInfo.deprecation.inference * 1000 // Convert to milliseconds
-              deprecationDate = new Date(inferenceDeprecationTime).toISOString().split("T")[0]
+          const regionModels = modelsByRegion.get(region)
+          if (regionModels) {
+            const modelKey = `${modelName}-${modelVersion}`
+            const modelInfo = regionModels.get(modelKey)
 
-              // Estimate retirement date as 6 months after deprecation if not explicitly provided
-              const sixMonthsAfterDeprecation = inferenceDeprecationTime + 6 * 30 * 24 * 60 * 60 * 1000
-              retirementDate = new Date(sixMonthsAfterDeprecation).toISOString().split("T")[0]
+            console.log("[v0] Looking up model:", modelKey, "Found:", !!modelInfo)
 
-              status = "deprecated"
+            if (modelInfo) {
+              // Check deprecation info
+              const deprecationInfo = modelInfo.deprecation || modelInfo.model?.deprecation
 
-              // Check if retirement is within 6 months from now
-              const now = Date.now()
-              const sixMonthsFromNow = now + 6 * 30 * 24 * 60 * 60 * 1000
-              if (sixMonthsAfterDeprecation <= sixMonthsFromNow) {
-                status = "retiring"
+              if (deprecationInfo?.inference) {
+                // The inference timestamp is when the model will be retired/unavailable
+                const retirementTime = deprecationInfo.inference * 1000 // Convert to milliseconds
+                retirementDate = new Date(retirementTime).toISOString().split("T")[0]
+
+                const now = Date.now()
+
+                // If retirement date is in the past, model is retired
+                if (retirementTime < now) {
+                  status = "deprecated"
+                  deprecationDate = retirementDate // Use retirement as deprecation for display
+                } else {
+                  // If retirement is within 6 months, mark as retiring
+                  const sixMonthsFromNow = now + 6 * 30 * 24 * 60 * 60 * 1000
+                  if (retirementTime <= sixMonthsFromNow) {
+                    status = "retiring"
+                    // Estimate deprecation announcement as 60 days before retirement
+                    const deprecationTime = retirementTime - 60 * 24 * 60 * 60 * 1000
+                    deprecationDate = new Date(deprecationTime).toISOString().split("T")[0]
+                  }
+                }
+
+                console.log("[v0] Model", modelKey, "retirement date:", retirementDate, "status:", status)
               }
             }
           }
