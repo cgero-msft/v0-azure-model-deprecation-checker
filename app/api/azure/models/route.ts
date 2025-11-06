@@ -25,6 +25,29 @@ interface AzureResource {
   }
 }
 
+interface AzureModel {
+  id: string
+  object: string
+  created_at: number
+  lifecycle_status?: string
+  deprecation?: {
+    fine_tune?: number
+    inference?: number
+  }
+  capabilities?: {
+    fine_tune?: boolean
+    inference?: boolean
+    completion?: boolean
+    chat_completion?: boolean
+    embeddings?: boolean
+  }
+}
+
+interface ModelsListResponse {
+  data: AzureModel[]
+  object: string
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const subscriptionId = searchParams.get("subscriptionId")
@@ -70,6 +93,31 @@ export async function GET(request: NextRequest) {
         const resourceGroup = resource.id.split("/")[4]
         const resourceName = resource.name
         const region = resource.location
+        const endpoint = resource.properties.endpoint
+
+        const modelsWithDeprecation: Map<string, AzureModel> = new Map()
+        try {
+          const modelsResponse = await fetch(`${endpoint}/openai/models?api-version=2024-10-21`, {
+            headers: {
+              "api-key": accessToken,
+              "Content-Type": "application/json",
+            },
+          })
+
+          if (modelsResponse.ok) {
+            const modelsData: ModelsListResponse = await modelsResponse.json()
+            console.log("[v0] Fetched", modelsData.data?.length || 0, "models with deprecation info for", resourceName)
+
+            // Create a map of model names to their deprecation info
+            modelsData.data.forEach((model) => {
+              modelsWithDeprecation.set(model.id, model)
+            })
+          } else {
+            console.log("[v0] Could not fetch models list for", resourceName, "- status:", modelsResponse.status)
+          }
+        } catch (modelsError) {
+          console.log("[v0] Error fetching models list for", resourceName, ":", modelsError)
+        }
 
         // Get deployments using Management API
         const deploymentsResponse = await fetch(
@@ -108,33 +156,26 @@ export async function GET(request: NextRequest) {
           let deprecationDate = null
           let retirementDate = null
 
-          const deprecatedModels = {
-            "gpt-35-turbo": { deprecation: "2024-07-05", retirement: "2025-01-05" },
-            "gpt-35-turbo-16k": { deprecation: "2024-07-05", retirement: "2025-01-05" },
-            "text-embedding-ada-002": { deprecation: "2024-12-01", retirement: "2025-06-01" },
-            "text-davinci-003": { deprecation: "2024-01-04", retirement: "2024-07-04" },
-            "text-curie-001": { deprecation: "2024-01-04", retirement: "2024-07-04" },
-            "text-babbage-001": { deprecation: "2024-01-04", retirement: "2024-07-04" },
-            "text-ada-001": { deprecation: "2024-01-04", retirement: "2024-07-04" },
-            "code-davinci-002": { deprecation: "2024-01-04", retirement: "2024-07-04" },
-            "code-cushman-001": { deprecation: "2024-01-04", retirement: "2024-07-04" },
-          }
+          // Look up deprecation info from the models API
+          const modelInfo = modelsWithDeprecation.get(modelName)
+          if (modelInfo?.deprecation) {
+            // If there's a deprecation timestamp, the model is deprecated
+            if (modelInfo.deprecation.inference) {
+              const inferenceDeprecationTime = modelInfo.deprecation.inference * 1000 // Convert to milliseconds
+              deprecationDate = new Date(inferenceDeprecationTime).toISOString().split("T")[0]
 
-          // Check for deprecated models
-          if (deprecatedModels[modelName]) {
-            status = "deprecated"
-            deprecationDate = deprecatedModels[modelName].deprecation
-            retirementDate = deprecatedModels[modelName].retirement
-          }
+              // Estimate retirement date as 6 months after deprecation if not explicitly provided
+              const sixMonthsAfterDeprecation = inferenceDeprecationTime + 6 * 30 * 24 * 60 * 60 * 1000
+              retirementDate = new Date(sixMonthsAfterDeprecation).toISOString().split("T")[0]
 
-          // Check if retirement is within 6 months
-          if (retirementDate) {
-            const retirementTime = new Date(retirementDate).getTime()
-            const now = Date.now()
-            const sixMonthsFromNow = now + 6 * 30 * 24 * 60 * 60 * 1000
+              status = "deprecated"
 
-            if (retirementTime <= sixMonthsFromNow) {
-              status = "retiring"
+              // Check if retirement is within 6 months from now
+              const now = Date.now()
+              const sixMonthsFromNow = now + 6 * 30 * 24 * 60 * 60 * 1000
+              if (sixMonthsAfterDeprecation <= sixMonthsFromNow) {
+                status = "retiring"
+              }
             }
           }
 
