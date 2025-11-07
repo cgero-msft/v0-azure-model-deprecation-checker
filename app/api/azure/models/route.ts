@@ -172,35 +172,78 @@ export async function GET(request: NextRequest) {
             const modelKey = `${modelName}-${modelVersion}`
             const modelInfo = regionModels.get(modelKey)
 
-            console.log("[v0] Looking up model:", modelKey, "Found:", !!modelInfo)
-
             if (modelInfo) {
-              // Check deprecation info
-              const deprecationInfo = modelInfo.deprecation || modelInfo.model?.deprecation
+              console.log("[v0] Model info for", modelKey, ":", JSON.stringify(modelInfo).substring(0, 200))
 
-              if (deprecationInfo?.inference) {
-                // The inference timestamp is when the model will be retired/unavailable
-                const retirementTime = deprecationInfo.inference * 1000 // Convert to milliseconds
-                retirementDate = new Date(retirementTime).toISOString().split("T")[0]
+              const deprecationInfo = modelInfo.deprecation || modelInfo.model?.deprecation || null
 
-                const now = Date.now()
+              if (deprecationInfo) {
+                console.log("[v0] Deprecation info:", JSON.stringify(deprecationInfo))
 
-                // If retirement date is in the past, model is retired
-                if (retirementTime < now) {
-                  status = "deprecated"
-                  deprecationDate = retirementDate // Use retirement as deprecation for display
-                } else {
-                  // If retirement is within 6 months, mark as retiring
-                  const sixMonthsFromNow = now + 6 * 30 * 24 * 60 * 60 * 1000
-                  if (retirementTime <= sixMonthsFromNow) {
-                    status = "retiring"
-                    // Estimate deprecation announcement as 60 days before retirement
-                    const deprecationTime = retirementTime - 60 * 24 * 60 * 60 * 1000
-                    deprecationDate = new Date(deprecationTime).toISOString().split("T")[0]
+                if (deprecationInfo.inference) {
+                  try {
+                    let retirementTime: number
+
+                    // Check if it's a string (ISO 8601 format like "2025-11-11T00:00:00Z")
+                    if (typeof deprecationInfo.inference === "string") {
+                      const retirementDateObj = new Date(deprecationInfo.inference)
+                      if (!isNaN(retirementDateObj.getTime())) {
+                        retirementTime = retirementDateObj.getTime()
+                      } else {
+                        throw new Error("Invalid date string")
+                      }
+                    }
+                    // Check if it's a number (Unix timestamp)
+                    else if (typeof deprecationInfo.inference === "number" && deprecationInfo.inference > 0) {
+                      retirementTime = deprecationInfo.inference * 1000 // Convert to milliseconds
+                    } else {
+                      throw new Error("Invalid deprecation format")
+                    }
+
+                    const retirementDateObj = new Date(retirementTime)
+                    if (!isNaN(retirementDateObj.getTime())) {
+                      const year = retirementDateObj.getFullYear()
+                      const month = retirementDateObj.getMonth() + 1 // 0-indexed
+                      const day = retirementDateObj.getDate()
+
+                      // If date is 12/30/2099 or any date in 2099 or later, treat as "no retirement date"
+                      const isPlaceholderDate = year >= 2099
+
+                      if (isPlaceholderDate) {
+                        // Don't set retirement date for placeholder dates
+                        retirementDate = null
+                        status = "active"
+                        console.log("[v0] Model", modelKey, "has placeholder retirement date, treating as active")
+                      } else {
+                        retirementDate = retirementDateObj.toISOString().split("T")[0]
+
+                        const now = Date.now()
+
+                        // Check if already retired (past the retirement date)
+                        if (retirementTime < now) {
+                          status = "deprecated"
+                          deprecationDate = retirementDate
+                        } else {
+                          // Check if retiring within 6 months
+                          const sixMonthsFromNow = now + 6 * 30 * 24 * 60 * 60 * 1000
+                          if (retirementTime <= sixMonthsFromNow) {
+                            status = "retiring"
+                            // Estimate deprecation date as 60 days before retirement
+                            const deprecationTime = retirementTime - 60 * 24 * 60 * 60 * 1000
+                            const deprecationDateObj = new Date(deprecationTime)
+                            if (!isNaN(deprecationDateObj.getTime())) {
+                              deprecationDate = deprecationDateObj.toISOString().split("T")[0]
+                            }
+                          }
+                        }
+
+                        console.log("[v0] Model", modelKey, "retirement date:", retirementDate, "status:", status)
+                      }
+                    }
+                  } catch (dateError) {
+                    console.log("[v0] Error parsing date for model", modelKey, ":", dateError.message)
                   }
                 }
-
-                console.log("[v0] Model", modelKey, "retirement date:", retirementDate, "status:", status)
               }
             }
           }
